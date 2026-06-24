@@ -13,6 +13,12 @@ and Code editors
 - 📸 Device Screenshot Capture
 - 🎯 UI Layout Analysis
 - 📱 Device Package Management
+- 🔌 Device Discovery (`list_devices`)
+- 🛰️ Remote devices over SSH (`connect_ssh`) — persists across restarts
+
+The server always starts even when no device is connected: device selection is
+lazy, so "no device", "wrong device", and "adb missing" surface as per-call
+errors instead of killing the server at startup.
 
 ## Prerequisites
 
@@ -148,9 +154,58 @@ repository
 
 <https://github.com/user-attachments/assets/c45bbc17-f698-43e7-85b4-f1b39b8326a8>
 
+## Remote devices over SSH
+
+To drive a device or emulator that lives on another machine (e.g. a CI runner
+provisioning a per-PR emulator that is only reachable over SSH), use the
+`connect_ssh` tool. It opens a persistent SSH local port-forward from the remote
+host's adb server (port `5037`) to a local port and points all adb tools at it,
+so `execute_adb_shell_command`, `get_screenshot`, `get_uilayout`, etc. all
+transparently target the remote device.
+
+Typical flow:
+
+1. `list_devices` — see what's connected locally (or, once connected, remotely).
+2. `connect_ssh(host="runner1", user="ci", device="emulator-5554")` — open the
+   tunnel and select the remote device.
+3. Any other command (`execute_adb_shell_command`, `get_screenshot`, ...) now
+   runs against the remote device.
+4. `ssh_status` to check state, `disconnect_ssh` to revert to local adb.
+
+The tunnel is held open by the (long-lived) MCP server, so it persists across
+tool calls. With `persist: true` (the default) the connection is also saved to
+`config.yaml` and re-established automatically after a restart. Authentication
+is **key-based only** (no password prompts) — use your ssh agent/config or pass
+`key_path`.
+
 ### Available Tools
 
 The server exposes the following tools:
+
+```python
+def list_devices() -> str:
+    """
+    List the serials of all currently connected ADB devices (works with zero,
+    one, or many devices; lists remote devices when connected over SSH).
+    """
+```
+
+```python
+def connect_ssh(host: str, user: str = "", port: int = 22, key_path: str = "",
+                remote_adb_port: int = 5037, device: str = "",
+                strict_host_key: str = "accept-new", persist: bool = True) -> str:
+    """
+    Open a persistent SSH tunnel to a remote host's adb server and drive its
+    devices. Subsequent adb tools target the remote device. Persists to
+    config.yaml by default so it survives a restart.
+    """
+
+def disconnect_ssh() -> str:
+    """Tear down the SSH tunnel and revert to the local adb server."""
+
+def ssh_status() -> str:
+    """Report the current SSH tunnel / adb endpoint state."""
+```
 
 ```python
 def get_packages() -> str:

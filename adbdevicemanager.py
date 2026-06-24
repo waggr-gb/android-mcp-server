@@ -7,7 +7,8 @@ from ppadb.client import Client as AdbClient
 
 
 class AdbDeviceManager:
-    def __init__(self, device_name: str | None = None, exit_on_error: bool = True) -> None:
+    def __init__(self, device_name: str | None = None, exit_on_error: bool = True,
+                 host: str = "127.0.0.1", port: int = 5037) -> None:
         """
         Initialize the ADB Device Manager
 
@@ -15,7 +16,14 @@ class AdbDeviceManager:
             device_name: Optional name/serial of the device to manage.
                          If None, attempts to auto-select if only one device is available.
             exit_on_error: Whether to exit the program if device initialization fails
+            host: Host of the adb server to talk to. Defaults to the local adb
+                  server; point it at a forwarded port to drive a remote device
+                  (e.g. over an SSH tunnel).
+            port: Port of the adb server to talk to (default 5037).
         """
+        self.host = host
+        self.port = port
+
         if not self.check_adb_installed():
             error_msg = "adb is not installed or not in PATH. Please install adb and ensure it is in your PATH."
             if exit_on_error:
@@ -24,7 +32,7 @@ class AdbDeviceManager:
             else:
                 raise RuntimeError(error_msg)
 
-        available_devices = self.get_available_devices()
+        available_devices = self.get_available_devices(host, port)
         if not available_devices:
             error_msg = "No devices connected. Please connect a device and try again."
             if exit_on_error:
@@ -60,7 +68,7 @@ class AdbDeviceManager:
 
         # At this point, selected_device_name should always be set due to the logic above
         # Initialize the device
-        self.device = AdbClient().device(selected_device_name)
+        self.device = AdbClient(host=host, port=port).device(selected_device_name)
 
     @staticmethod
     def check_adb_installed() -> bool:
@@ -73,9 +81,9 @@ class AdbDeviceManager:
             return False
 
     @staticmethod
-    def get_available_devices() -> list[str]:
-        """Get a list of available devices."""
-        return [device.serial for device in AdbClient().devices()]
+    def get_available_devices(host: str = "127.0.0.1", port: int = 5037) -> list[str]:
+        """Get a list of available devices from the given adb server."""
+        return [device.serial for device in AdbClient(host=host, port=port).devices()]
 
     def get_packages(self) -> str:
         command = "pm list packages"
