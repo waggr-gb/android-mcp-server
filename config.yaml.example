@@ -16,6 +16,21 @@ device:
 
 # Usage scenarios:
 # 1. No config file: Auto-select when only one device connected
-# 2. Config file with name: null or name: "": Auto-select when only one device connected  
+# 2. Config file with name: null or name: "": Auto-select when only one device connected
 # 3. Config file with device.name: "specific-device": Connect to specific device
 # 4. Multiple devices connected without device.name: Will show error and list available devices
+
+# SSH connection (optional)
+# Drive a device/emulator that lives on a remote machine reachable over SSH
+# (e.g. a CI runner provisioning a per-PR emulator). The remote host's adb
+# server port is forwarded to a local port and all adb tools target it.
+# This block is usually written for you by the `connect_ssh` tool (persist:true)
+# and re-established automatically on the next command. Key-based auth only.
+# ssh:
+#   host: "runner1.example.com"   # required
+#   user: "ci"                    # optional if your ssh config supplies it
+#   port: 22                      # SSH port (default 22)
+#   key_path: "~/.ssh/id_ed25519" # optional private key
+#   remote_adb_port: 5037         # adb server port on the remote host (default 5037)
+#   strict_host_key: "accept-new" # ssh StrictHostKeyChecking (default accept-new)
+#   device: "emulator-5554"       # optional device serial to pre-select on the remote

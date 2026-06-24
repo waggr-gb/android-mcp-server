@@ -12,7 +12,15 @@ and Code editors
 - 🔧 ADB Command Execution
 - 📸 Device Screenshot Capture
 - 🎯 UI Layout Analysis
+- 👆 UI Interaction (`tap`, `swipe`, `input_text`, `press_key`, `launch_app`, ...)
+- 📦 App Lifecycle (`install_apk`, `uninstall_app`, `force_stop`, `get_current_app`, `device_info`)
 - 📱 Device Package Management
+- 🔌 Device Discovery (`list_devices`)
+- 🛰️ Remote devices over SSH (`connect_ssh`) — persists across restarts
+
+The server always starts even when no device is connected: device selection is
+lazy, so "no device", "wrong device", and "adb missing" surface as per-call
+errors instead of killing the server at startup.
 
 ## Prerequisites
 
@@ -148,9 +156,58 @@ repository
 
 <https://github.com/user-attachments/assets/c45bbc17-f698-43e7-85b4-f1b39b8326a8>
 
+## Remote devices over SSH
+
+To drive a device or emulator that lives on another machine (e.g. a CI runner
+provisioning a per-PR emulator that is only reachable over SSH), use the
+`connect_ssh` tool. It opens a persistent SSH local port-forward from the remote
+host's adb server (port `5037`) to a local port and points all adb tools at it,
+so `execute_adb_shell_command`, `get_screenshot`, `get_uilayout`, etc. all
+transparently target the remote device.
+
+Typical flow:
+
+1. `list_devices` — see what's connected locally (or, once connected, remotely).
+2. `connect_ssh(host="runner1", user="ci", device="emulator-5554")` — open the
+   tunnel and select the remote device.
+3. Any other command (`execute_adb_shell_command`, `get_screenshot`, ...) now
+   runs against the remote device.
+4. `ssh_status` to check state, `disconnect_ssh` to revert to local adb.
+
+The tunnel is held open by the (long-lived) MCP server, so it persists across
+tool calls. With `persist: true` (the default) the connection is also saved to
+`config.yaml` and re-established automatically after a restart. Authentication
+is **key-based only** (no password prompts) — use your ssh agent/config or pass
+`key_path`.
+
 ### Available Tools
 
 The server exposes the following tools:
+
+```python
+def list_devices() -> str:
+    """
+    List the serials of all currently connected ADB devices (works with zero,
+    one, or many devices; lists remote devices when connected over SSH).
+    """
+```
+
+```python
+def connect_ssh(host: str, user: str = "", port: int = 22, key_path: str = "",
+                remote_adb_port: int = 5037, device: str = "",
+                strict_host_key: str = "accept-new", persist: bool = True) -> str:
+    """
+    Open a persistent SSH tunnel to a remote host's adb server and drive its
+    devices. Subsequent adb tools target the remote device. Persists to
+    config.yaml by default so it survives a restart.
+    """
+
+def disconnect_ssh() -> str:
+    """Tear down the SSH tunnel and revert to the local adb server."""
+
+def ssh_status() -> str:
+    """Report the current SSH tunnel / adb endpoint state."""
+```
 
 ```python
 def get_packages() -> str:
@@ -203,6 +260,42 @@ def get_package_action_intents(package_name: str) -> list[str]:
         list[str]: A list of all non-data actions from the Activity Resolver
         Table for the package
     """
+```
+
+**UI interaction** — drive the device the way a user would (pair with
+`get_uilayout` / `get_screenshot` to find coordinates):
+
+```python
+def tap(x: int, y: int) -> str: ...
+def long_press(x: int, y: int, duration_ms: int = 600) -> str: ...
+def swipe(x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> str:
+    """Swipe/drag between two points (also used to scroll)."""
+def input_text(text: str) -> str:
+    """Type into the focused field (spaces/metacharacters handled for you)."""
+def press_key(key: str) -> str:
+    """Numeric keycode, KEYCODE_* name, or alias (HOME, BACK, ENTER, MENU,
+    RECENTS, VOLUME_UP/DOWN, TAB, DEL, SEARCH, ESC, UP/DOWN/LEFT/RIGHT, ...)."""
+def go_home() -> str: ...
+def go_back() -> str: ...
+def launch_app(package: str) -> str:
+    """Launch an app via its resolved launcher activity (am start)."""
+```
+
+**Device state & lifecycle:**
+
+```python
+def get_current_app() -> str:
+    """The foreground app as "package/activity"."""
+def device_info() -> str:
+    """Model, Android version, SDK, ABI, screen size/density, battery level."""
+def install_apk(apk_path: str, reinstall: bool = True) -> str:
+    """Install an APK from the server host (works through the SSH tunnel)."""
+def uninstall_app(package: str) -> str: ...
+def force_stop(package: str) -> str: ...
+def get_clipboard() -> str:  # Android 13+
+    ...
+def set_clipboard(text: str) -> str:  # Android 13+
+    ...
 ```
 
 ## Contributing
