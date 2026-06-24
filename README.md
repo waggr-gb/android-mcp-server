@@ -12,6 +12,8 @@ and Code editors
 - 🔧 ADB Command Execution
 - 📸 Device Screenshot Capture
 - 🎯 UI Layout Analysis
+- 👆 UI Interaction (`tap`, `swipe`, `input_text`, `press_key`, `launch_app`, ...)
+- 📦 App Lifecycle (`install_apk`, `uninstall_app`, `force_stop`, `get_current_app`, `device_info`)
 - 📱 Device Package Management
 - 🔌 Device Discovery (`list_devices`)
 - 🛰️ Remote devices over SSH (`connect_ssh`) — persists across restarts
@@ -258,6 +260,42 @@ def get_package_action_intents(package_name: str) -> list[str]:
         list[str]: A list of all non-data actions from the Activity Resolver
         Table for the package
     """
+```
+
+**UI interaction** — drive the device the way a user would (pair with
+`get_uilayout` / `get_screenshot` to find coordinates):
+
+```python
+def tap(x: int, y: int) -> str: ...
+def long_press(x: int, y: int, duration_ms: int = 600) -> str: ...
+def swipe(x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> str:
+    """Swipe/drag between two points (also used to scroll)."""
+def input_text(text: str) -> str:
+    """Type into the focused field (spaces/metacharacters handled for you)."""
+def press_key(key: str) -> str:
+    """Numeric keycode, KEYCODE_* name, or alias (HOME, BACK, ENTER, MENU,
+    RECENTS, VOLUME_UP/DOWN, TAB, DEL, SEARCH, ESC, UP/DOWN/LEFT/RIGHT, ...)."""
+def go_home() -> str: ...
+def go_back() -> str: ...
+def launch_app(package: str) -> str:
+    """Launch an app via its resolved launcher activity (am start)."""
+```
+
+**Device state & lifecycle:**
+
+```python
+def get_current_app() -> str:
+    """The foreground app as "package/activity"."""
+def device_info() -> str:
+    """Model, Android version, SDK, ABI, screen size/density, battery level."""
+def install_apk(apk_path: str, reinstall: bool = True) -> str:
+    """Install an APK from the server host (works through the SSH tunnel)."""
+def uninstall_app(package: str) -> str: ...
+def force_stop(package: str) -> str: ...
+def get_clipboard() -> str:  # Android 13+
+    ...
+def set_clipboard(text: str) -> str:  # Android 13+
+    ...
 ```
 
 ## Contributing

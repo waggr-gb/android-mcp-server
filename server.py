@@ -320,12 +320,12 @@ def get_uilayout() -> str:
 
 @mcp.tool()
 def get_screenshot() -> Image:
-    """Takes a screenshot of the device and returns it.
+    """Takes a screenshot of the device and returns it as a PNG image.
     Returns:
         Image: the screenshot
     """
-    get_device_manager().take_screenshot()
-    return Image(path="compressed_screenshot.png")
+    data = get_device_manager().take_screenshot()
+    return Image(data=data, format="png")
 
 
 @mcp.tool()
@@ -339,6 +339,200 @@ def get_package_action_intents(package_name: str) -> list[str]:
     """
     result = get_device_manager().get_package_action_intents(package_name)
     return result
+
+
+# ---- UI interaction ----------------------------------------------------
+
+
+@mcp.tool()
+def tap(x: int, y: int) -> str:
+    """Tap (single click) at a screen coordinate.
+
+    Args:
+        x: X pixel coordinate.
+        y: Y pixel coordinate.
+    Returns:
+        str: Confirmation of the tap.
+    """
+    return get_device_manager().tap(x, y)
+
+
+@mcp.tool()
+def long_press(x: int, y: int, duration_ms: int = 600) -> str:
+    """Long-press (touch and hold) at a screen coordinate.
+
+    Args:
+        x: X pixel coordinate.
+        y: Y pixel coordinate.
+        duration_ms: Hold duration in milliseconds (default 600).
+    Returns:
+        str: Confirmation of the long press.
+    """
+    return get_device_manager().long_press(x, y, duration_ms)
+
+
+@mcp.tool()
+def swipe(x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> str:
+    """Swipe/drag from one coordinate to another (also used to scroll).
+
+    Args:
+        x1: Start X. y1: Start Y. x2: End X. y2: End Y.
+        duration_ms: Gesture duration in milliseconds (default 300).
+    Returns:
+        str: Confirmation of the swipe.
+    """
+    return get_device_manager().swipe(x1, y1, x2, y2, duration_ms)
+
+
+@mcp.tool()
+def input_text(text: str) -> str:
+    """Type text into the currently focused input field.
+
+    Tap the field first so it has focus. Spaces and shell metacharacters are
+    handled for you.
+
+    Args:
+        text: The text to type.
+    Returns:
+        str: Confirmation.
+    """
+    return get_device_manager().input_text(text)
+
+
+@mcp.tool()
+def press_key(key: str) -> str:
+    """Send a key event.
+
+    Accepts a numeric Android keycode, a full name (e.g. "KEYCODE_ENTER"), or a
+    friendly alias: HOME, BACK, ENTER, MENU, POWER, RECENTS, VOLUME_UP,
+    VOLUME_DOWN, TAB, DEL/BACKSPACE, SEARCH, SPACE, ESC, UP, DOWN, LEFT, RIGHT,
+    CENTER.
+
+    Args:
+        key: Keycode, name, or alias.
+    Returns:
+        str: Confirmation.
+    """
+    return get_device_manager().press_key(key)
+
+
+@mcp.tool()
+def go_home() -> str:
+    """Press the HOME button.
+
+    Returns:
+        str: Confirmation.
+    """
+    return get_device_manager().press_key("HOME")
+
+
+@mcp.tool()
+def go_back() -> str:
+    """Press the BACK button.
+
+    Returns:
+        str: Confirmation.
+    """
+    return get_device_manager().press_key("BACK")
+
+
+@mcp.tool()
+def launch_app(package: str) -> str:
+    """Launch an app by package name via its launcher activity.
+
+    Resolves the launcher activity and uses `am start` (deterministic), falling
+    back to monkey only if resolution fails.
+
+    Args:
+        package: The app package name, e.g. "com.android.settings".
+    Returns:
+        str: The launched component, or an error message.
+    """
+    return get_device_manager().launch_app(package)
+
+
+# ---- device state / lifecycle ------------------------------------------
+
+
+@mcp.tool()
+def get_current_app() -> str:
+    """Report the foreground app as "package/activity".
+
+    Returns:
+        str: The resumed package/activity, or a message if it can't be found.
+    """
+    return get_device_manager().get_current_app()
+
+
+@mcp.tool()
+def device_info() -> str:
+    """Summarize the device: model, Android version, SDK, ABI, screen size/density, battery.
+
+    Returns:
+        str: One property per line.
+    """
+    return get_device_manager().device_info()
+
+
+@mcp.tool()
+def install_apk(apk_path: str, reinstall: bool = True) -> str:
+    """Install an APK located on the machine running this server.
+
+    The path is read on the server host (works through the SSH tunnel too).
+
+    Args:
+        apk_path: Absolute path to a .apk on the server host.
+        reinstall: Keep existing data and reinstall (-r) if already installed.
+    Returns:
+        str: Confirmation; raises with the install error on failure.
+    """
+    return get_device_manager().install_apk(apk_path, reinstall)
+
+
+@mcp.tool()
+def uninstall_app(package: str) -> str:
+    """Uninstall an app by package name.
+
+    Args:
+        package: The app package name.
+    Returns:
+        str: The uninstall result.
+    """
+    return get_device_manager().uninstall_app(package)
+
+
+@mcp.tool()
+def force_stop(package: str) -> str:
+    """Force-stop a running app.
+
+    Args:
+        package: The app package name.
+    Returns:
+        str: Confirmation.
+    """
+    return get_device_manager().force_stop(package)
+
+
+@mcp.tool()
+def get_clipboard() -> str:
+    """Read the device clipboard text (requires Android 13+).
+
+    Returns:
+        str: Clipboard contents, or a note if empty/unavailable.
+    """
+    return get_device_manager().get_clipboard()
+
+
+@mcp.tool()
+def set_clipboard(text: str) -> str:
+    """Set the device clipboard text (requires Android 13+).
+
+    Args:
+        text: The text to place on the clipboard.
+    Returns:
+        str: Confirmation.
+    """
+    return get_device_manager().set_clipboard(text)
 
 
 if __name__ == "__main__":
