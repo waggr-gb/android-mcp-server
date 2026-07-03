@@ -47,6 +47,37 @@ uv python install 3.11
 uv sync
 ```
 
+### Automated install (all LLM clients at once)
+
+Instead of hand-editing each client's config, run:
+
+```bash
+./install.sh
+```
+
+It runs `uv sync`, then detects which MCP-capable clients are installed on this
+machine and registers the server with each of them:
+
+- **Claude Code** (`claude mcp add --scope user`, so it's available in every project)
+- **Claude Desktop** (`claude_desktop_config.json`)
+- **Cursor** (`~/.cursor/mcp.json`)
+- **Windsurf** (`~/.codeium/windsurf/mcp_config.json`)
+- **Gemini CLI** (`~/.gemini/settings.json`)
+- **Codex CLI** (`codex mcp add`, falling back to `~/.codex/config.toml`)
+- **VS Code** (user-level `mcp.json`)
+
+The script is idempotent (re-running updates the entry in place), only merges —
+existing config keys are preserved and a `.bak` copy is written before any file
+is modified — and skips clients that aren't installed. A config file it can't
+parse (e.g. JSONC with comments) is left untouched and reported so you can add
+the entry manually. Flags: `--no-sync` skips `uv sync`; `--name NAME` registers
+under a different server name (default `android`). Linux and macOS only.
+
+Restart the affected apps (or start a new CLI session) afterwards to pick up
+the server.
+
+### Manual install
+
 ## Configuration
 
 The server supports flexible device configuration with multiple usage scenarios.
