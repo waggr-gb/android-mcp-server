@@ -247,6 +247,21 @@ class AdbDeviceManager:
         # whole token so shell metacharacters pass through literally.
         return self._shell_quote(text.replace(" ", "%s"))
 
+    # Characters Android's `input text` silently DROPS. Measured on a Google-APIs
+    # emulator (API 35, Gboard) by typing 'a!b@c#d$e^f&g*h(i)j;k?l~m' into a
+    # visible field: 'ab@cdefghijklm' arrived. Every one of these vanished while
+    # '@' survived, so it is not shell quoting — _shell_quote() is correct POSIX
+    # and the same loss happens through a hand-quoted `adb shell` too.
+    #
+    # There is no working fallback: `input keycombination 59 8` (shift+1) produces
+    # nothing, and KEYCODE_PASTE after set_clipboard is a no-op. So the only
+    # honest options are to refuse, or to type what we can and SAY what we did not.
+    _UNSENDABLE_CHARS = frozenset("!#$^&*();?~")
+
+    @classmethod
+    def _unsendable_in(cls, text: str) -> list:
+        return sorted({c for c in text if c in cls._UNSENDABLE_CHARS})
+
     _KEY_ALIASES = {
         "HOME": "KEYCODE_HOME", "BACK": "KEYCODE_BACK", "ENTER": "KEYCODE_ENTER",
         "MENU": "KEYCODE_MENU", "POWER": "KEYCODE_POWER",
@@ -288,6 +303,24 @@ class AdbDeviceManager:
                 f"over {int(duration_ms)}ms")
 
     def input_text(self, text: str) -> str:
+        # Refuse BEFORE typing. The old behaviour typed what it could and returned
+        # "Typed N character(s)" for the full N, so a password missing a '!' read
+        # as success and the failure surfaced as an unexplained login rejection
+        # several layers away. A partially-typed secret is worse than none: it
+        # leaves the field looking populated (the mask even shows the right dot
+        # count in some fields) while being wrong.
+        unsendable = self._unsendable_in(text)
+        if unsendable:
+            return (
+                "REFUSED: Android's `input text` cannot type "
+                + " ".join(repr(c) for c in unsendable)
+                + " — they are dropped silently, and neither `input keycombination` "
+                "nor clipboard paste delivers them either.\n"
+                "Nothing was typed, so the field still holds whatever it held before.\n"
+                "Workarounds: tap the character on the on-screen keyboard, or change "
+                "the value under test to one without these characters."
+            )
+
         self.device.shell(f"input text {self._escape_input_text(text)}")
         return f"Typed {len(text)} character(s)"
 

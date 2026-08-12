@@ -388,13 +388,17 @@ def swipe(x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> str:
 def input_text(text: str) -> str:
     """Type text into the currently focused input field.
 
-    Tap the field first so it has focus. Spaces and shell metacharacters are
-    handled for you.
+    Tap the field first so it has focus. Spaces are handled for you.
+
+    NOT every character can be typed. Android's `input text` silently drops
+    ! # $ ^ & * ( ) ; ? ~ — so this REFUSES such text and types NOTHING, rather
+    than delivering a corrupted value and reporting success. Read the return
+    value: it either confirms a count or explains what it refused and why.
 
     Args:
         text: The text to type.
     Returns:
-        str: Confirmation.
+        str: Confirmation of what was typed, or a REFUSED explanation.
     """
     return get_device_manager().input_text(text)
 
